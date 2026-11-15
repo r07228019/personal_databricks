@@ -1,0 +1,28 @@
+{
+  "timezone": "Asia/Taipei",
+  "defaults": {
+    "data_date": "today",
+    "data_hour": 13
+  },
+  "validation": {
+    "max_lookback_hours": 120
+  },
+  "source": {
+    "url_template": "https://www.cwa.gov.tw/Data/temperature/{date}_{hour:02d}00.GTP8w.jpg",
+    "url_date_format": "%Y-%m-%d",
+    "expected_content_type": "image/jpeg"
+  },
+  "destination": {
+    "catalog": "test",
+    "schema": "cwa_data",
+    "volume": "data",
+    "sub_dir": "temperature/temperature_map",
+    "file_name_template": "{date}{hour:02d}00.jpg",
+    "file_date_format": "%Y%m%d"
+  },
+  "http": {
+    "max_attempts": 3,
+    "retry_wait_seconds": 30,
+    "timeout_seconds": 60
+  }
+}
