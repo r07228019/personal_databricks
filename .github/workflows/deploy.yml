@@ -16,7 +16,8 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  DATABRICKS_CLI_VERSION: v1.16.0
+  # No "v" prefix: databricks/setup-cli prepends it when building the download URL
+  DATABRICKS_CLI_VERSION: 1.16.0
   BUNDLE_TARGET: prod
 
 jobs:
