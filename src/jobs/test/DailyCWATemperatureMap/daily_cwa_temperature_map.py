@@ -1,6 +1,6 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC # DailyCWATemperatureMap
+# MAGIC # dailyCWATemperatureMap
 # MAGIC
 # MAGIC 抓取中央氣象署（CWA）指定日期、小時的溫度分布圖，存入 UC Volume（同名檔案直接覆蓋）。
 # MAGIC 排程每天 18:00（台北）執行，預設抓當天 13:00 的圖。
@@ -26,6 +26,10 @@
 # MAGIC | `data_date` | `yyyy-MM-dd` 或 `today` | config `defaults.data_date`（目前 `today`） | `today` = config 時區的當天 |
 # MAGIC | `data_hour` | `0`～`23` 的整數 | config `defaults.data_hour`（目前 `13`） | |
 # MAGIC | `config_path` | 絕對路徑 | 本 notebook 同目錄的 `config.json` | |
+# MAGIC | `repo_root` | 絕對路徑 | 由本 notebook 位置往上推四層 | repo 根目錄，用來 import `common`；bundle 部署時為 `${workspace.file_path}` |
+# MAGIC
+# MAGIC bundle 部署的位置是一般 workspace 資料夾（不是 Git folder），Databricks 只會自動把 notebook 所在目錄加進
+# MAGIC `sys.path`，所以第一個程式 cell 會先把 repo 根目錄加進去，之後才 import `common`。
 # MAGIC
 # MAGIC 檢查規則：日期必須是真實存在的日期、小時必須是 0～23 的整數，且資料時間不可晚於現在、
 # MAGIC 也不可早於 `validation.max_lookback_hours`（CWA 只保留最近約 5 天的圖）。config 的預設值也走同一套檢查。
@@ -37,6 +41,22 @@
 
 # MAGIC %load_ext autoreload
 # MAGIC %autoreload 2
+
+# COMMAND ----------
+
+import os
+import sys
+
+dbutils.widgets.text("repo_root", "", "repo_root (空白=由 notebook 位置推算)")
+
+# A bundle deploys to a plain workspace folder, not a Git folder, so Databricks only puts the
+# notebook directory on sys.path. Add the repo root explicitly so `import common` resolves.
+_notebook_path = dbutils.notebook.entry_point.getDbutils().notebook().getContext().notebookPath().get()
+_notebook_dir = "/Workspace" + os.path.dirname(_notebook_path)
+_repo_root = dbutils.widgets.get("repo_root").strip() or os.path.abspath(os.path.join(_notebook_dir, "../../../.."))
+for _p in (_notebook_dir, _repo_root):
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
 
 # COMMAND ----------
 

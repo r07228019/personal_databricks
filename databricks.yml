@@ -1,0 +1,34 @@
+bundle:
+  name: personal_databricks
+
+include:
+  - resources/*.yml
+  - resources/giscovery/*.yml
+
+# workspace host 不寫在這裡：本機用 `--profile personal`、GitHub Actions 用 DATABRICKS_HOST / DATABRICKS_TOKEN 環境變數。
+# 這取代了 reference pipeline 裡 sed 置換 <CDL_WORKSPACE_HOST> 的步驟，repo 內不留任何環境相關的值。
+variables:
+  catalog:
+    description: Unity Catalog catalog 名稱
+    default: test
+  giscovery_schema:
+    description: giscovery 設定表與 Volume 所在的 schema
+    default: giscovery
+  crawlersink_volume:
+    description: 爬蟲下載檔案存放的 Volume
+    default: crawlersink
+  run_as_user:
+    description: 執行 job 的使用者（以部署者本人執行，不使用 service principal）
+    default: ${workspace.current_user.userName}
+  notification_email:
+    description: job 失敗時通知的信箱
+    default: ${workspace.current_user.userName}
+
+targets:
+  prod:
+    mode: production
+    default: true
+    workspace:
+      root_path: /Workspace/Users/${workspace.current_user.userName}/.bundle/${bundle.name}/${bundle.target}
+    run_as:
+      user_name: ${var.run_as_user}

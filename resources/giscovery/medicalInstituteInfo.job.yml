@@ -1,0 +1,50 @@
+# 由 scripts/gen_crawler_jobs.py 依 src/jobs/config/data/cfh-gis20-ddb-crawler-config.jsonl 自動產生，
+# 不要手改；改 jsonl 後重新執行 `python scripts/gen_crawler_jobs.py`。
+
+resources:
+  jobs:
+    medicalInstituteInfo:
+      name: medicalInstituteInfo
+      description: "giscovery 爬蟲 medicalInstituteInfo（category=medical），來源 https://data.gov.tw/api/front/dataset/list"
+      tags:
+        project-name: giscovery
+        job-type: crawler
+        task_name: medicalInstituteInfo
+        category: medical
+      max_concurrent_runs: 1
+      performance_target: STANDARD
+      schedule:
+        quartz_cron_expression: "0 0 16 5 * ? *"
+        timezone_id: Asia/Taipei
+        pause_status: UNPAUSED
+      email_notifications:
+        on_failure:
+          - ${var.notification_email}
+      environments:
+        - environment_key: crawler
+          spec:
+            client: "2"
+            dependencies:
+              - beautifulsoup4
+              - paramiko
+      parameters:
+        - name: task_name
+          default: medicalInstituteInfo
+        - name: config_table
+          default: ${var.catalog}.${var.giscovery_schema}.crawler_config
+        - name: sink_catalog
+          default: ${var.catalog}
+        - name: sink_schema
+          default: ${var.giscovery_schema}
+        - name: sink_volume
+          default: ${var.crawlersink_volume}
+        - name: repo_root
+          default: ${workspace.file_path}
+      tasks:
+        - task_key: crawl
+          environment_key: crawler
+          notebook_task:
+            notebook_path: ../../src/jobs/giscovery/run_crawler.py
+          timeout_seconds: 3600
+          max_retries: 1
+          min_retry_interval_millis: 300000
