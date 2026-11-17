@@ -86,7 +86,8 @@ jsonl 的 `schedule` 欄位沿用 AWS EventBridge 的 6 欄位 cron（分 時 �
 ## 本機開發
 
 ```bash
-# 單元測試（不需要 Databricks）
+# 單元測試（不需要 Databricks）；套件清單與 .github/workflows/deploy.yml 的 test job 相同
+pip install pytest requests pandas beautifulsoup4 paramiko
 pytest
 
 # 驗證 / 部署 / 執行（profile 由 ~/.databrickscfg 決定）
