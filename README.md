@@ -9,7 +9,7 @@
 | cwa | `dailyCWATemperatureMap` | 每天 18:00（台北）抓中央氣象署當天 13:00 的溫度分布圖到 UC Volume |
 | giscovery | `<task_name>` × 13（如 `cathayATM`、`debrisCoverage`） | 從 [app-aws-crawler](https://dev.azure.com/cfhclouddevops/D.tech-GIS2.0/_git/app-aws-crawler) 移植的 13 支爬蟲，各自排程、各自一個 job，下載檔案到 UC Volume |
 | giscovery | `crawlerEtl` | 爬蟲的後處理（移植自原本的 glue-trigger Lambda 與 Glue job），每支爬蟲 job 爬完後觸發，可多個 run 並行：`to_etl=true` 做 ETL，其餘原封不動複製到 etldestined |
-| config | `updateGiscoveryConfig` | 把 jsonl 設定檔同步到 Delta table（取代原本的 DynamoDB），無排程、手動執行 |
+| config | `updateGiscoveryConfig` | 把 jsonl 設定檔同步到 Delta table（取代原本的 DynamoDB），無排程；GitHub Actions 部署完會自動執行，也可手動執行 |
 
 Job 命名一律用 lowerCamelCase、不加專案前綴（爬蟲 job 直接沿用 `task_name`，例如 `CWB`）；專案與類型用 tags 區分：
 
@@ -43,7 +43,7 @@ Job 命名一律用 lowerCamelCase、不加專案前綴（爬蟲 job 直接沿�
 │       └── data/*.jsonl             # 設定檔（沿用原 DynamoDB 的檔名）
 ├── scripts/gen_crawler_jobs.py      # 依 jsonl 產生 resources/giscovery/*.job.yml
 ├── tests/                           # pytest 單元測試
-└── .github/workflows/deploy.yml     # push main → 測試 → bundle deploy
+└── .github/workflows/deploy.yml     # push main → 測試 → bundle deploy → 同步設定表
 ```
 
 ## giscovery 爬蟲
@@ -52,7 +52,7 @@ Job 命名一律用 lowerCamelCase、不加專案前綴（爬蟲 job 直接沿�
 
 ```
 src/jobs/config/data/cfh-gis20-ddb-crawler-config.jsonl
-        │  updateGiscoveryConfig job（手動執行）
+        │  updateGiscoveryConfig job（部署時自動執行，或手動執行）
         ▼
 test.giscovery.crawler_config（Delta；task_name / config_json / updated_at）
         │  run_crawler notebook 依 task_name 讀一行
@@ -119,7 +119,7 @@ jsonl 的 `schedule` 欄位沿用 AWS EventBridge 的 6 欄位 cron（分 時 �
    - data.gov.tw 的搜尋用 `giscovery_crawler.datagov`，HTTP 用 `giscovery_crawler.http`。
 3. `python scripts/gen_crawler_jobs.py` 產生 job yml。
 4. 需要 ETL 時：jsonl 設 `"to_etl": "true"`，並在 `cfh-gis20-ddb-etl-config.jsonl` 加同一個 `task_name` 的轉換設定；否則爬完的檔會原封不動複製到 etldestined。
-5. 部署後先跑一次 `updateGiscoveryConfig`，再跑新 job。
+5. 經 GitHub Actions 部署時會自動跑 `updateGiscoveryConfig`；本機部署則要先手動跑一次，再跑新 job。
 
 ## 本機開發
 
@@ -155,8 +155,9 @@ bundle 部署的位置（`.bundle/personal_databricks/prod/files`）是一般 wo
 | Validate / Deploy `--force-lock` | 相同 |
 | Check Deploy（`workspace list`） | 相同，路徑改由 `bundle summary` 取得 |
 | Clean up | 不需要（runner 用完即丟） |
+| （新增）Sync Config | `bundle run updateGiscoveryConfig` 並等它跑完，把 jsonl 同步到 Delta 設定表；job 失敗、被取消或逾時，整個部署就算失敗 |
 
-觸發條件：push 到 `main`（或手動 `workflow_dispatch`）。先跑 `test` job（`gen_crawler_jobs.py --check` + pytest），通過才 `deploy`。
+觸發條件：push 到 `main`（或手動 `workflow_dispatch`）。先跑 `test` job（`gen_crawler_jobs.py --check` + pytest），通過才 `deploy`；`deploy` 的最後一步是同步設定表，成功才算部署成功。
 
 需要在 GitHub repo 設定的 secrets（Settings → Secrets and variables → Actions，environment `prod`）：
 

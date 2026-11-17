@@ -1,5 +1,6 @@
 # 對應 Azure DevOps Classic Release「[Old] Lab Deploy」的流程，改成 GitHub Actions：
 #   Python 環境 → Databricks CLI（固定版本）→ 認證 → validate → deploy --force-lock → 檢查部署結果 → 清理
+#   最後再執行 updateGiscoveryConfig 並等它完成，同步失敗則整個部署視為失敗
 # 差異：
 #   - 認證改用 GitHub Secrets 的 DATABRICKS_HOST / DATABRICKS_TOKEN（以個人帳號 PAT 執行，不另建 service principal），
 #     CLI 直接讀環境變數，不需要產生 ~/.databrickscfg
@@ -78,3 +79,12 @@ jobs:
           databricks workspace list "$ROOT/files/src/jobs"
           echo "====== jobs ======"
           databricks bundle summary -t "$BUNDLE_TARGET"
+
+      - name: Sync Config 同步設定表作業
+        # Sync the jsonl files to the Delta config tables so crawlers/ETL read the deployed config.
+        # `bundle run` waits for the run and exits non-zero if it fails, is canceled or times out,
+        # so the deploy only succeeds when the sync succeeds.
+        timeout-minutes: 20
+        run: |
+          set -euo pipefail
+          databricks bundle run updateGiscoveryConfig -t "$BUNDLE_TARGET"
