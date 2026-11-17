@@ -48,3 +48,10 @@ resources:
           timeout_seconds: 3600
           max_retries: 1
           min_retry_interval_millis: 300000
+        - task_key: etl
+          depends_on:
+            - task_key: crawl
+          run_job_task:
+            job_id: ${resources.jobs.crawlerEtl.id}
+            job_parameters:
+              task_name: countyAvgHospitalizedDay

@@ -1,0 +1,40 @@
+resources:
+  jobs:
+    crawlerEtl:
+      name: crawlerEtl
+      description: giscovery 爬蟲的後處理（取代原本的 glue-trigger Lambda + Glue job）。每支爬蟲 job 爬完後以 Run Job task 帶 task_name 觸發，可多個 run 並行；to_etl=true 依 etl_config 轉換，其餘原封不動複製到 etldestined。
+      tags:
+        project-name: giscovery
+        job-type: etl
+      # Same as the original Glue job's max_concurrent_runs; extra runs are queued instead of skipped
+      max_concurrent_runs: 50
+      queue:
+        enabled: true
+      performance_target: STANDARD
+      email_notifications:
+        on_failure:
+          - ${var.notification_email}
+      parameters:
+        - name: task_name
+          default: ""
+        - name: input_path
+          default: ""
+        - name: crawler_config_table
+          default: ${var.catalog}.${var.giscovery_schema}.crawler_config
+        - name: etl_config_table
+          default: ${var.catalog}.${var.giscovery_schema}.etl_config
+        - name: catalog
+          default: ${var.catalog}
+        - name: schema
+          default: ${var.giscovery_schema}
+        - name: source_volume
+          default: ${var.crawlersink_volume}
+        - name: output_volume
+          default: ${var.etldestined_volume}
+        - name: repo_root
+          default: ${workspace.file_path}
+      tasks:
+        - task_key: etl
+          notebook_task:
+            notebook_path: ../src/jobs/giscovery/run_etl.py
+          timeout_seconds: 1800

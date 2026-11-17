@@ -88,3 +88,20 @@ class TestWriteBytes:
 
         assert path.read_bytes() == b"GOOD-OLD-IMAGE"
         assert _leftover_tmp_files(tmp_path) == []
+
+
+def test_copy_file_streams_bytes_and_reports_overwrite(tmp_path):
+    from common.storage import copy_file
+
+    src = tmp_path / "src.zip"
+    src.write_bytes(b"\x00\x01binary")
+    dst = tmp_path / "out" / "nested" / "src.zip"
+
+    first = copy_file(str(src), str(dst))
+    assert dst.read_bytes() == b"\x00\x01binary"
+    assert (first.size, first.overwritten) == (8, False)
+
+    src.write_bytes(b"new")
+    second = copy_file(str(src), str(dst))
+    assert dst.read_bytes() == b"new" and second.overwritten
+    assert [p.name for p in dst.parent.iterdir()] == ["src.zip"]  # no temp file left

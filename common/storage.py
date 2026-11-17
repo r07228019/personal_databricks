@@ -1,6 +1,7 @@
 """Unity Catalog Volume 路徑組裝與寫檔。"""
 
 import os
+import shutil
 import uuid
 from dataclasses import dataclass
 
@@ -44,3 +45,24 @@ def write_bytes(path: str, content: bytes, *, overwrite: bool = True) -> WriteRe
         if os.path.exists(tmp_path):
             os.remove(tmp_path)
     return WriteResult(path=path, size=size, overwritten=overwritten)
+
+
+def copy_file(src: str, dst: str) -> WriteResult:
+    """把 src 原封不動複製到 dst（自動建立上層目錄，同名直接覆蓋）。
+
+    與 write_bytes 相同：先串流複製到同目錄的暫存檔 → 確認大小與來源一致 → os.replace，失敗不留殘檔。
+    """
+    overwritten = os.path.exists(dst)
+    dir_name, base_name = os.path.split(dst)
+    os.makedirs(dir_name, exist_ok=True)
+    tmp_path = os.path.join(dir_name, f".{base_name}.{uuid.uuid4().hex}.tmp")
+    try:
+        shutil.copyfile(src, tmp_path)
+        size, expected = os.path.getsize(tmp_path), os.path.getsize(src)
+        if size != expected:
+            raise OSError(f"暫存檔大小不符：{tmp_path}（{size} != {expected}）")
+        os.replace(tmp_path, dst)
+    finally:
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
+    return WriteResult(path=dst, size=size, overwritten=overwritten)
