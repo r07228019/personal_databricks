@@ -65,12 +65,16 @@ def test_parse_filter_condition_rejects_unknown(raw):
 @pytest.fixture(scope="module")
 def spark():
     pyspark_sql = pytest.importorskip("pyspark.sql")
-    session = (
-        pyspark_sql.SparkSession.builder.master("local[1]")
-        .appName("test_etl")
-        .config("spark.ui.enabled", "false")
-        .getOrCreate()
-    )
+    try:
+        session = (
+            pyspark_sql.SparkSession.builder.master("local[1]")
+            .appName("test_etl")
+            .config("spark.ui.enabled", "false")
+            .getOrCreate()
+        )
+    except RuntimeError as e:
+        # databricks-connect ships a pyspark that refuses local sessions; treat it like pyspark being absent
+        pytest.skip(f"local SparkSession unavailable: {e}")
     yield session
     session.stop()
 
