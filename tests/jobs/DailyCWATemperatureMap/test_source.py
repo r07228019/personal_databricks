@@ -8,7 +8,7 @@ from cwa_temperature_map.params import RunParams
 from cwa_temperature_map.source import build_dest_path, build_source_url
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-CONFIG_PATH = REPO_ROOT / "jobs" / "DailyCWATemperatureMap" / "config.json"
+CONFIG_PATH = REPO_ROOT / "src" / "jobs" / "test" / "DailyCWATemperatureMap" / "config.json"
 
 
 @pytest.fixture(scope="module")

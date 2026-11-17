@@ -1,0 +1,77 @@
+# 對應 Azure DevOps Classic Release「[Old] Lab Deploy」的流程，改成 GitHub Actions：
+#   Python 環境 → Databricks CLI（固定版本）→ 認證 → validate → deploy --force-lock → 檢查部署結果 → 清理
+# 差異：
+#   - 認證改用 GitHub Secrets 的 DATABRICKS_HOST / DATABRICKS_TOKEN（以個人帳號 PAT 執行，不另建 service principal），
+#     CLI 直接讀環境變數，不需要產生 ~/.databrickscfg
+#   - 不做 sed 置換：host 不寫在 databricks.yml，run_as / 通知信箱由 ${workspace.current_user} 推得
+name: Deploy Databricks bundle
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: databricks-bundle-prod
+  cancel-in-progress: false
+
+env:
+  DATABRICKS_CLI_VERSION: v1.16.0
+  BUNDLE_TARGET: prod
+
+jobs:
+  test:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install test dependencies
+        run: pip install pytest requests pandas beautifulsoup4
+      - name: Check generated job yml is in sync with jsonl
+        run: python scripts/gen_crawler_jobs.py --check
+      - name: Run pytest
+        run: pytest
+
+  deploy:
+    name: Deploy to Databricks (${{ github.ref_name }} → prod)
+    needs: test
+    runs-on: ubuntu-latest
+    environment: prod
+    env:
+      DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+      DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Databricks CLI 環境確認
+        uses: databricks/setup-cli@main
+        with:
+          version: ${{ env.DATABRICKS_CLI_VERSION }}
+
+      - name: Auth 身分驗證作業
+        run: |
+          databricks --version
+          databricks current-user me
+
+      - name: Deploy 驗證與部署作業
+        run: |
+          set -euo pipefail
+          echo "====== Validate ======"
+          databricks bundle validate -t "$BUNDLE_TARGET"
+          echo "====== Deploy ======"
+          databricks bundle deploy -t "$BUNDLE_TARGET" --force-lock
+
+      - name: Check Deploy 檢查部署作業
+        run: |
+          set -euo pipefail
+          ROOT=$(databricks bundle summary -t "$BUNDLE_TARGET" -o json | python3 -c 'import json,sys; print(json.load(sys.stdin)["workspace"]["root_path"])')
+          echo "bundle root: $ROOT"
+          echo "====== ls resources/ ======"
+          databricks workspace list "$ROOT/files/resources"
+          echo "====== ls src/jobs ======"
+          databricks workspace list "$ROOT/files/src/jobs"
+          echo "====== jobs ======"
+          databricks bundle summary -t "$BUNDLE_TARGET"

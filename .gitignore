@@ -1,0 +1,14 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+
+# Databricks bundle 本機快取（terraform state、variable overrides）
+.databricks/
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
