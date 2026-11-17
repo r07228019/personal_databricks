@@ -17,6 +17,9 @@ variables:
   crawlersink_volume:
     description: 爬蟲下載檔案存放的 Volume
     default: crawlersink
+  etldestined_volume:
+    description: ETL 結果存放的 Volume（對應原本的 etldestined S3 bucket）
+    default: etldestined
   run_as_user:
     description: 執行 job 的使用者（以部署者本人執行，不使用 service principal）
     default: ${workspace.current_user.userName}

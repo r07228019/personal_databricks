@@ -2,7 +2,7 @@ resources:
   jobs:
     updateGiscoveryConfig:
       name: updateGiscoveryConfig
-      description: 把 src/jobs/config/data/*.jsonl 同步到 Delta 設定表（crawler_config / etl_config）。無排程，部署後手動執行。
+      description: 把 src/jobs/config/data/*.jsonl 同步到 Delta 設定表（crawler_config / etl_config）。無排程；GitHub Actions 部署完會自動執行並等它完成，也可手動執行。
       tags:
         project-name: giscovery
         job-type: config

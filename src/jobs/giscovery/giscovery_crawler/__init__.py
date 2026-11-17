@@ -5,4 +5,6 @@
 - datagov：data.gov.tw 搜尋 API 的共用查詢
 - schedule：EventBridge cron → Quartz cron 轉換（產生 job yml 用）
 - runner：依 task_name 載入 crawlers/<task_name>.py 並執行 main()
+- etl：依 etl_config 轉換爬蟲下載的檔案（移植自 Glue job，由 run_etl notebook 呼叫）
+- passthrough：to_etl=false 的檔案原封不動複製到 etldestined（移植自 glue-trigger Lambda 的 copy_file）
 """

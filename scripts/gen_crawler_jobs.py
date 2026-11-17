@@ -8,6 +8,8 @@
 
 - 沒有 schedule 欄位的 task 不建排程（job 仍會建立，可手動執行）
 - schedule_enabled 為 "false" 的 task 排程 PAUSED
+- 每支都有 etl task：crawl 成功後以 Run Job task 觸發共用的 crawlerEtl job（只帶 task_name），
+  由 crawlerEtl 依 to_etl 決定做 ETL 或原封不動複製到 etldestined，取代原本 S3 事件 → glue-trigger Lambda 的串接
 - PAUSED_TASKS 裡的 task 不論 jsonl 怎麼寫都 PAUSED，暫停原因會一併寫進 job 的 description
   （目前在 Databricks 上跑不起來的三支：CWB、potentialWindField、soilLiquefaction）
 """
@@ -26,6 +28,8 @@ JSONL_PATH = REPO_ROOT / "src" / "jobs" / "config" / "data" / "cfh-gis20-ddb-cra
 OUTPUT_DIR = REPO_ROOT / "resources" / "giscovery"
 NOTEBOOK_PATH = "../../src/jobs/giscovery/run_crawler.py"
 TIMEZONE = "Asia/Taipei"
+# Resource key of the shared ETL job (resources/crawler_etl.job.yml)
+ETL_JOB_KEY = "crawlerEtl"
 # task_name -> why the schedule is forced to PAUSED. The reason is appended to the job description.
 # The workspace runs on AWS us-east-2, so serverless egress leaves from US IP addresses.
 PAUSED_TASKS = {
@@ -123,6 +127,14 @@ def render_job(task: dict) -> str:
         "          timeout_seconds: 3600",
         "          max_retries: 1",
         "          min_retry_interval_millis: 300000",
+        # crawlerEtl decides ETL vs. plain copy from to_etl, like the glue-trigger Lambda did
+        "        - task_key: etl",
+        "          depends_on:",
+        "            - task_key: crawl",
+        "          run_job_task:",
+        f"            job_id: ${{resources.jobs.{ETL_JOB_KEY}.id}}",
+        "            job_parameters:",
+        f"              task_name: {name}",
         "",
     ]
     return "\n".join(lines)
