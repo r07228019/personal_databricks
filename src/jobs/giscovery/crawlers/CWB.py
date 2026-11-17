@@ -3,7 +3,8 @@
 SFTP 帳密原本放 AWS Secrets Manager，這裡改讀 Databricks secret scope（由 runner 傳入 secrets(scope, key)）：
     scope：params["secret_scope"]（預設 giscovery）
     keys：cwb_sftp_hostname / cwb_sftp_username / cwb_sftp_password
-注意：serverless compute 對外連 port 22 不一定被允許，排程預設暫停，需先手動驗證。
+注意：這台 SFTP 在中央氣象署內部，Databricks 連不到，所以這支在 Databricks 上無法實際執行，
+排程固定暫停（見 scripts/gen_crawler_jobs.py 的 PAUSED_TASKS）。
 """
 
 import os

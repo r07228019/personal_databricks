@@ -70,7 +70,17 @@ jsonl 的 `schedule` 欄位沿用 AWS EventBridge 的 6 欄位 cron（分 時 �
 
 改排程的流程：改 jsonl → `python scripts/gen_crawler_jobs.py` → commit 兩者。CI 會用 `--check` 確認 yml 與 jsonl 一致。
 
-`CWB` 走 SFTP，帳密需放在 Databricks secret scope `giscovery`（key：`cwb_sftp_hostname` / `cwb_sftp_username` / `cwb_sftp_password`），而且 serverless 對外連 port 22 尚未驗證，所以它的排程固定 `PAUSED`（見 `gen_crawler_jobs.py` 的 `PAUSED_TASKS`）。
+### 排程固定暫停的爬蟲
+
+下列三支目前在 Databricks 上跑不起來，排程固定 `PAUSED`（`gen_crawler_jobs.py` 的 `PAUSED_TASKS`，不論 jsonl 怎麼寫），暫停原因也會寫進 job 的 description。workspace 在 AWS us-east-2，serverless 對外是美國 IP。
+
+| Job | 原因 |
+|---|---|
+| `CWB` | 需連到中央氣象署內部的 SFTP，Databricks 連不到，因此無法實際執行。程式仍保留：帳密讀 secret scope `giscovery`（key：`cwb_sftp_hostname` / `cwb_sftp_username` / `cwb_sftp_password`） |
+| `potentialWindField` | 下載來源 `www.moeaea.gov.tw` 對 Databricks 的連線回 HTTP 403，從台灣 IP 可正常下載 |
+| `soilLiquefaction` | 目錄檔來源 `www.gsmma.gov.tw` 對 Databricks 的連線回 HTTP 403，從台灣 IP 可正常下載；另外 51 個 GeoJSON 在 `www.geologycloud.tw`，連續下載疑似會被限流（未證實） |
+
+要恢復排程：先解決連線問題（例如改由台灣 IP 連線），再把該 task 從 `PAUSED_TASKS` 移除並重新產生 yml。
 
 ### 新增一支爬蟲
 

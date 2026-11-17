@@ -8,7 +8,8 @@
 
 - 沒有 schedule 欄位的 task 不建排程（job 仍會建立，可手動執行）
 - schedule_enabled 為 "false" 的 task 排程 PAUSED
-- PAUSED_TASKS 裡的 task 不論 jsonl 怎麼寫都 PAUSED（目前只有 CWB：SFTP 帳密與 serverless 對外 port 22 尚未驗證）
+- PAUSED_TASKS 裡的 task 不論 jsonl 怎麼寫都 PAUSED，暫停原因會一併寫進 job 的 description
+  （目前在 Databricks 上跑不起來的三支：CWB、potentialWindField、soilLiquefaction）
 """
 
 import argparse
@@ -25,7 +26,19 @@ JSONL_PATH = REPO_ROOT / "src" / "jobs" / "config" / "data" / "cfh-gis20-ddb-cra
 OUTPUT_DIR = REPO_ROOT / "resources" / "giscovery"
 NOTEBOOK_PATH = "../../src/jobs/giscovery/run_crawler.py"
 TIMEZONE = "Asia/Taipei"
-PAUSED_TASKS = {"CWB"}
+# task_name -> why the schedule is forced to PAUSED. The reason is appended to the job description.
+# The workspace runs on AWS us-east-2, so serverless egress leaves from US IP addresses.
+PAUSED_TASKS = {
+    "CWB": "需連到中央氣象署內部的 SFTP，Databricks 連不到，因此無法實際執行",
+    "potentialWindField": (
+        "下載來源 www.moeaea.gov.tw 對 Databricks serverless（AWS us-east-2）的連線回 HTTP 403，"
+        "從台灣 IP 可正常下載；需改由台灣 IP 連線才能啟用"
+    ),
+    "soilLiquefaction": (
+        "目錄檔來源 www.gsmma.gov.tw 對 Databricks serverless（AWS us-east-2）的連線回 HTTP 403，"
+        "從台灣 IP 可正常下載；另外 51 個 GeoJSON 在 www.geologycloud.tw，連續下載疑似會被限流（未證實）"
+    ),
+}
 HEADER = (
     "# 由 scripts/gen_crawler_jobs.py 依 src/jobs/config/data/cfh-gis20-ddb-crawler-config.jsonl 自動產生，\n"
     "# 不要手改；改 jsonl 後重新執行 `python scripts/gen_crawler_jobs.py`。\n"
@@ -48,13 +61,17 @@ def render_job(task: dict) -> str:
     category = task.get("category", "")
     url = task.get("download_url", "")
 
+    description = f"giscovery 爬蟲 {name}（category={category}）{('，來源 ' + url) if url else ''}"
+    if name in PAUSED_TASKS:
+        description += f"。【排程暫停】{PAUSED_TASKS[name]}"
+
     lines = [
         HEADER,
         "resources:",
         "  jobs:",
         f"    {job_key}:",
         f"      name: {job_key}",
-        f"      description: \"giscovery 爬蟲 {name}（category={category}）{('，來源 ' + url) if url else ''}\"",
+        f"      description: \"{description}\"",
         "      tags:",
         "        project-name: giscovery",
         "        job-type: crawler",
