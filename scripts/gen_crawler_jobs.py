@@ -43,7 +43,8 @@ def load_tasks(path: Path) -> list[dict]:
 
 def render_job(task: dict) -> str:
     name = task["task_name"]
-    job_key = f"giscovery_crawler_{name}"
+    # job key / name 直接用 task_name，不加前綴；專案與類型改用 tags 區分
+    job_key = name
     category = task.get("category", "")
     url = task.get("download_url", "")
 
@@ -56,6 +57,7 @@ def render_job(task: dict) -> str:
         f"      description: \"giscovery 爬蟲 {name}（category={category}）{('，來源 ' + url) if url else ''}\"",
         "      tags:",
         "        project-name: giscovery",
+        "        job-type: crawler",
         f"        task_name: {name}",
         f"        category: {category}",
         "      max_concurrent_runs: 1",

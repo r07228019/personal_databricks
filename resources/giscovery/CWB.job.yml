@@ -3,11 +3,12 @@
 
 resources:
   jobs:
-    giscovery_crawler_CWB:
-      name: giscovery_crawler_CWB
+    CWB:
+      name: CWB
       description: "giscovery 爬蟲 CWB（category=geo）"
       tags:
         project-name: giscovery
+        job-type: crawler
         task_name: CWB
         category: geo
       max_concurrent_runs: 1

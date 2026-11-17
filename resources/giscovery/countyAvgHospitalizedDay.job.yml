@@ -3,11 +3,12 @@
 
 resources:
   jobs:
-    giscovery_crawler_countyAvgHospitalizedDay:
-      name: giscovery_crawler_countyAvgHospitalizedDay
+    countyAvgHospitalizedDay:
+      name: countyAvgHospitalizedDay
       description: "giscovery 爬蟲 countyAvgHospitalizedDay（category=medical），來源 https://data.gov.tw/api/front/dataset/list"
       tags:
         project-name: giscovery
+        job-type: crawler
         task_name: countyAvgHospitalizedDay
         category: medical
       max_concurrent_runs: 1

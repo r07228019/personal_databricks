@@ -3,11 +3,12 @@
 
 resources:
   jobs:
-    giscovery_crawler_windPowerGeneration:
-      name: giscovery_crawler_windPowerGeneration
+    windPowerGeneration:
+      name: windPowerGeneration
       description: "giscovery 爬蟲 windPowerGeneration（category=geo），來源 https://service.taipower.com.tw/data/opendata/apply/file/d693001/001.csv"
       tags:
         project-name: giscovery
+        job-type: crawler
         task_name: windPowerGeneration
         category: geo
       max_concurrent_runs: 1

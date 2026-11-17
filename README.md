@@ -6,9 +6,17 @@
 
 | 類別 | Job | 內容 |
 |---|---|---|
-| cwa | `DailyCWATemperatureMap` | 每天 18:00（台北）抓中央氣象署當天 13:00 的溫度分布圖到 UC Volume |
-| giscovery | `giscovery_crawler_<task_name>` × 13 | 從 [app-aws-crawler](https://dev.azure.com/cfhclouddevops/D.tech-GIS2.0/_git/app-aws-crawler) 移植的 13 支爬蟲，各自排程、各自一個 job，下載檔案到 UC Volume |
-| config | `update_giscovery_config` | 把 jsonl 設定檔同步到 Delta table（取代原本的 DynamoDB），無排程、手動執行 |
+| cwa | `dailyCWATemperatureMap` | 每天 18:00（台北）抓中央氣象署當天 13:00 的溫度分布圖到 UC Volume |
+| giscovery | `<task_name>` × 13（如 `cathayATM`、`debrisCoverage`） | 從 [app-aws-crawler](https://dev.azure.com/cfhclouddevops/D.tech-GIS2.0/_git/app-aws-crawler) 移植的 13 支爬蟲，各自排程、各自一個 job，下載檔案到 UC Volume |
+| config | `updateGiscoveryConfig` | 把 jsonl 設定檔同步到 Delta table（取代原本的 DynamoDB），無排程、手動執行 |
+
+Job 命名一律用 lowerCamelCase、不加專案前綴（爬蟲 job 直接沿用 `task_name`，例如 `CWB`）；專案與類型用 tags 區分：
+
+| Tag | 值 |
+|---|---|
+| `project-name` | `giscovery` / `cwa` |
+| `job-type` | `crawler` / `config` |
+| `category`、`task_name` | 只有 giscovery 爬蟲有，來自 jsonl（如 `geo` / `medical`） |
 
 ## 目錄結構
 
@@ -41,7 +49,7 @@
 
 ```
 src/jobs/config/data/cfh-gis20-ddb-crawler-config.jsonl
-        │  update_giscovery_config job（手動執行）
+        │  updateGiscoveryConfig job（手動執行）
         ▼
 test.giscovery.crawler_config（Delta；task_name / config_json / updated_at）
         │  run_crawler notebook 依 task_name 讀一行
@@ -73,7 +81,7 @@ jsonl 的 `schedule` 欄位沿用 AWS EventBridge 的 6 欄位 cron（分 時 �
    - 需要密碼時改成 `main(sink, params, secrets)`，`secrets(scope, key)` 對應 `dbutils.secrets.get`。
    - data.gov.tw 的搜尋用 `giscovery_crawler.datagov`，HTTP 用 `giscovery_crawler.http`。
 3. `python scripts/gen_crawler_jobs.py` 產生 job yml。
-4. 部署後先跑一次 `update_giscovery_config`，再跑新 job。
+4. 部署後先跑一次 `updateGiscoveryConfig`，再跑新 job。
 
 ## 本機開發
 
@@ -84,11 +92,17 @@ pytest
 # 驗證 / 部署 / 執行（profile 由 ~/.databrickscfg 決定）
 databricks bundle validate -t prod -p personal
 databricks bundle deploy   -t prod -p personal
-databricks bundle run update_giscovery_config -t prod -p personal
-databricks bundle run giscovery_crawler_cathayATM -t prod -p personal
+databricks bundle run updateGiscoveryConfig -t prod -p personal
+databricks bundle run cathayATM -t prod -p personal
 ```
 
 `pytest.ini` 的 `pythonpath` 模擬 Databricks 上的 import 行為（repo 根目錄 + 各 job 目錄）；新增 job 目錄時記得加進去。
+
+### notebook 如何 import `common`
+
+bundle 部署的位置（`.bundle/personal_databricks/prod/files`）是一般 workspace 資料夾，不是 Git folder，Databricks 只會自動把 notebook 所在目錄加進 `sys.path`，不會加 repo 根目錄（[官方說明](https://docs.databricks.com/aws/en/files/workspace-modules)）。
+
+所以凡是要 import `common` 的 notebook，都要有 job parameter `repo_root`（預設 `${workspace.file_path}`），並在第一個程式 cell 把它加進 `sys.path`；`repo_root` 空白時改由 notebook 位置往上推算。現有做法見 `run_crawler.py` 與 `daily_cwa_temperature_map.py`，新增 job 時比照辦理。
 
 ## 部署（GitHub Actions）
 

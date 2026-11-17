@@ -3,11 +3,12 @@
 
 resources:
   jobs:
-    giscovery_crawler_geoSensitiveArea:
-      name: giscovery_crawler_geoSensitiveArea
+    geoSensitiveArea:
+      name: geoSensitiveArea
       description: "giscovery 爬蟲 geoSensitiveArea（category=geo），來源 https://data.tainan.gov.tw/Resource/cc24a5f1-e33a-49b1-b9bd-29fa011a5f2d?fileId=08a6cc03-cc71-462e-9221-361655624625&importFileType=ShapeFile&handler=DLGisFile"
       tags:
         project-name: giscovery
+        job-type: crawler
         task_name: geoSensitiveArea
         category: geo
       max_concurrent_runs: 1

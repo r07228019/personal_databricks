@@ -3,11 +3,12 @@
 
 resources:
   jobs:
-    giscovery_crawler_debrisCoverage:
-      name: giscovery_crawler_debrisCoverage
+    debrisCoverage:
+      name: debrisCoverage
       description: "giscovery 爬蟲 debrisCoverage（category=geo），來源 https://data.gov.tw/api/front/dataset/list"
       tags:
         project-name: giscovery
+        job-type: crawler
         task_name: debrisCoverage
         category: geo
       max_concurrent_runs: 1

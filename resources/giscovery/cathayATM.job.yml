@@ -3,11 +3,12 @@
 
 resources:
   jobs:
-    giscovery_crawler_cathayATM:
-      name: giscovery_crawler_cathayATM
+    cathayATM:
+      name: cathayATM
       description: "giscovery 爬蟲 cathayATM（category=geo），來源 https://www.cathaybk.com.tw/CathayBK/service/Locations/LocationsGetData.ashx"
       tags:
         project-name: giscovery
+        job-type: crawler
         task_name: cathayATM
         category: geo
       max_concurrent_runs: 1

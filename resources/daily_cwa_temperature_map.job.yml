@@ -1,10 +1,11 @@
 resources:
   jobs:
-    DailyCWATemperatureMap:
-      name: DailyCWATemperatureMap
+    dailyCWATemperatureMap:
+      name: dailyCWATemperatureMap
       description: 每天 18:00（台北）抓取中央氣象署當天 13:00 的溫度分布圖，存入 UC Volume。
       tags:
         project-name: cwa
+        job-type: crawler
       max_concurrent_runs: 1
       performance_target: STANDARD
       schedule:
@@ -21,6 +22,8 @@ resources:
           default: ""
         - name: config_path
           default: ""
+        - name: repo_root
+          default: ${workspace.file_path}
       tasks:
         - task_key: download_temperature_map
           notebook_task:

@@ -3,11 +3,12 @@
 
 resources:
   jobs:
-    giscovery_crawler_soilLiquefaction:
-      name: giscovery_crawler_soilLiquefaction
+    soilLiquefaction:
+      name: soilLiquefaction
       description: "giscovery 爬蟲 soilLiquefaction（category=geo），來源 https://data.gov.tw/dataset/28691"
       tags:
         project-name: giscovery
+        job-type: crawler
         task_name: soilLiquefaction
         category: geo
       max_concurrent_runs: 1

@@ -3,11 +3,12 @@
 
 resources:
   jobs:
-    giscovery_crawler_debrisStream:
-      name: giscovery_crawler_debrisStream
+    debrisStream:
+      name: debrisStream
       description: "giscovery 爬蟲 debrisStream（category=geo），來源 https://data.gov.tw/api/front/dataset/list"
       tags:
         project-name: giscovery
+        job-type: crawler
         task_name: debrisStream
         category: geo
       max_concurrent_runs: 1

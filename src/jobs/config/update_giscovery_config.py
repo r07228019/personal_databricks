@@ -1,6 +1,6 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC # update_giscovery_config
+# MAGIC # updateGiscoveryConfig
 # MAGIC
 # MAGIC 把 `data/` 底下的 jsonl 設定檔同步到 Delta table，取代原本 AWS 的 `update_dynamodb_table.py`
 # MAGIC （建表 → 清空 → 逐行 put）。這裡用 overwrite 一次替換整張表，表不存在會自動建立。

@@ -3,11 +3,12 @@
 
 resources:
   jobs:
-    giscovery_crawler_solarPowerGeneration:
-      name: giscovery_crawler_solarPowerGeneration
+    solarPowerGeneration:
+      name: solarPowerGeneration
       description: "giscovery 爬蟲 solarPowerGeneration（category=geo），來源 https://service.taipower.com.tw/data/opendata/apply/file/d693001/001.csv"
       tags:
         project-name: giscovery
+        job-type: crawler
         task_name: solarPowerGeneration
         category: geo
       max_concurrent_runs: 1

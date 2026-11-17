@@ -3,11 +3,12 @@
 
 resources:
   jobs:
-    giscovery_crawler_historicalTyphoonFloodArea:
-      name: giscovery_crawler_historicalTyphoonFloodArea
+    historicalTyphoonFloodArea:
+      name: historicalTyphoonFloodArea
       description: "giscovery 爬蟲 historicalTyphoonFloodArea（category=geo），來源 https://opendata.wra.gov.tw/cloud/HistoricalFloodingArea/210-%E6%AD%B7%E5%B9%B4%E9%A2%B1%E9%A2%A8%E6%B7%B9%E6%B0%B4%E7%AF%84%E5%9C%8D.kml"
       tags:
         project-name: giscovery
+        job-type: crawler
         task_name: historicalTyphoonFloodArea
         category: geo
       max_concurrent_runs: 1
