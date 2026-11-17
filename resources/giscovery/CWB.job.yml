@@ -5,7 +5,7 @@ resources:
   jobs:
     CWB:
       name: CWB
-      description: "giscovery 爬蟲 CWB（category=geo）"
+      description: "giscovery 爬蟲 CWB（category=geo）。【排程暫停】需連到中央氣象署內部的 SFTP，Databricks 連不到，因此無法實際執行"
       tags:
         project-name: giscovery
         job-type: crawler

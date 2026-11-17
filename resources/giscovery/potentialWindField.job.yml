@@ -5,7 +5,7 @@ resources:
   jobs:
     potentialWindField:
       name: potentialWindField
-      description: "giscovery 爬蟲 potentialWindField（category=geo），來源 https://data.gov.tw/api/front/dataset/list"
+      description: "giscovery 爬蟲 potentialWindField（category=geo），來源 https://data.gov.tw/api/front/dataset/list。【排程暫停】下載來源 www.moeaea.gov.tw 對 Databricks serverless（AWS us-east-2）的連線回 HTTP 403，從台灣 IP 可正常下載；需改由台灣 IP 連線才能啟用"
       tags:
         project-name: giscovery
         job-type: crawler
@@ -16,7 +16,7 @@ resources:
       schedule:
         quartz_cron_expression: "0 0 16 1 * ? *"
         timezone_id: Asia/Taipei
-        pause_status: UNPAUSED
+        pause_status: PAUSED
       email_notifications:
         on_failure:
           - ${var.notification_email}

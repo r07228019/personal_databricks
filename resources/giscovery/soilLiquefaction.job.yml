@@ -5,7 +5,7 @@ resources:
   jobs:
     soilLiquefaction:
       name: soilLiquefaction
-      description: "giscovery 爬蟲 soilLiquefaction（category=geo），來源 https://data.gov.tw/dataset/28691"
+      description: "giscovery 爬蟲 soilLiquefaction（category=geo），來源 https://data.gov.tw/dataset/28691。【排程暫停】目錄檔來源 www.gsmma.gov.tw 對 Databricks serverless（AWS us-east-2）的連線回 HTTP 403，從台灣 IP 可正常下載；另外 51 個 GeoJSON 在 www.geologycloud.tw，連續下載疑似會被限流（未證實）"
       tags:
         project-name: giscovery
         job-type: crawler
@@ -16,7 +16,7 @@ resources:
       schedule:
         quartz_cron_expression: "0 0 16 1 3 ? *"
         timezone_id: Asia/Taipei
-        pause_status: UNPAUSED
+        pause_status: PAUSED
       email_notifications:
         on_failure:
           - ${var.notification_email}
