@@ -84,6 +84,7 @@ run_etl notebook 依 crawler_config 的 to_etl 分流
 - **並行**：`crawlerEtl` 的 `max_concurrent_runs` 是 50（與原本 Glue job 相同），並開啟 queue，超過上限的 run 會排隊而不是被略過。
 - **轉換**：`giscovery_crawler/etl.py`，依 `etl_config` 依序做 rename → drop → filter → cast，與 Glue 版本相同；`fillna` 在 Glue 版本被註解掉、沒有生效，這裡也不做。
 - **與 Glue 版本的差異**：
+  - 讀檔預設 `multiLine=true`：Glue 版本沿用 Spark 預設的 `false`，引號內含換行的欄位會被拆成兩筆（例如 `renewableEnergyPlant` 的備註欄）；`load_file` 仍可覆寫。
   - 讀檔時依 `crawler_config` 的 `file_encoding` 解碼。Spark 4 的 CSV 不支援 `big5`，會先轉成 UTF-8 暫存檔（放在輸出目錄，跑完即刪）再讀。
   - serverless 是 Spark 4（ANSI 模式預設開啟），`cast_columns` 與 `>` 比較改用 `try_cast`，維持 Glue（Spark 3.3）「轉不過就是 null」的行為。
   - 看不懂的 `filter_conditions` 會直接拋錯，Glue 版本則默默略過。
