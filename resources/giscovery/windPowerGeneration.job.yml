@@ -23,7 +23,7 @@ resources:
       environments:
         - environment_key: crawler
           spec:
-            client: "2"
+            environment_version: "3"
             dependencies:
               - beautifulsoup4
               - paramiko

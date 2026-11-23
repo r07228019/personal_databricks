@@ -7,6 +7,8 @@ from dataclasses import dataclass
 TABLE_FILES = {
     "crawler_config": "cfh-gis20-ddb-crawler-config.jsonl",
     "etl_config": "cfh-gis20-ddb-etl-config.jsonl",
+    # 地理標準化（run_geo）的設定，Databricks 版新增，原本 AWS 沒有
+    "geo_config": "cfh-gis20-geo-config.jsonl",
 }
 
 KEY_FIELD = "task_name"
