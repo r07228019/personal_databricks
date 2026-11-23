@@ -13,6 +13,8 @@
 # MAGIC 表結構：`task_name STRING`、`config_json STRING`（整行 JSON）、`updated_at TIMESTAMP`。
 # MAGIC 不把 JSON 展開成欄位，因為 etl_config 的 nested key 含 `(`、`/` 等 Delta 不允許的字元。
 # MAGIC
+# MAGIC 參數都由 job 定義傳入（`resources/update_giscovery_config.job.yml`），notebook 不設預設值，下表的預設是 job 端的值。
+# MAGIC
 # MAGIC | 參數 | 說明 |
 # MAGIC |---|---|
 # MAGIC | `catalog` / `schema` | 目的地，預設 `test` / `giscovery` |
@@ -23,9 +25,7 @@
 import os
 import sys
 
-dbutils.widgets.text("catalog", "test", "catalog")
-dbutils.widgets.text("schema", "giscovery", "schema")
-dbutils.widgets.text("data_dir", "", "data_dir (空白=同目錄 data/)")
+# Parameters come from the job definition (resources/*.yml); read them with dbutils.widgets.get only.
 
 _notebook_path = dbutils.notebook.entry_point.getDbutils().notebook().getContext().notebookPath().get()
 _notebook_dir = "/Workspace" + os.path.dirname(_notebook_path)

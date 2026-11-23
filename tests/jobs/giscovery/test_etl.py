@@ -15,11 +15,15 @@ from giscovery_crawler.etl import (
 
 def test_read_options_encoding_then_load_file_then_forced_header():
     opts = build_read_options({"load_file": {"delimiter": "\\t", "header": False}}, "big5")
-    assert opts == {"encoding": "big5", "delimiter": "\\t", "header": True}
+    assert opts == {"encoding": "big5", "multiLine": True, "delimiter": "\\t", "header": True}
 
 
 def test_read_options_defaults():
-    assert build_read_options({}) == {"header": True}
+    assert build_read_options({}) == {"multiLine": True, "header": True}
+
+
+def test_read_options_load_file_can_disable_multiline():
+    assert build_read_options({"load_file": {"multiLine": False}})["multiLine"] is False
 
 
 @pytest.mark.parametrize("enc, expected", [(None, False), ("utf-8", False), ("UTF8", False), ("big5", True), ("cp950", True)])
@@ -145,3 +149,12 @@ def test_apply_etl_tab_delimiter_from_load_file(spark, tmp_path):
     cfg = {"load_file": {"delimiter": "\\t"}, "rename_columns": {"場址編號(項次)": "SiteID", "點位編碼": "PointID"}}
     df = apply_etl(_read(spark, tmp_path, "p.csv", src, build_read_options(cfg, "utf-8")), cfg)
     assert _rows(df) == [["SiteID", "PointID"], ["1", "1-1"]]
+
+
+def test_quoted_newline_stays_in_one_row(spark, tmp_path):
+    from giscovery_crawler.etl import apply_etl
+
+    src = 'id,remarks\n1,"輪轂高度:64公尺\n試運轉中"\n2,ok\n'.encode("utf-8")
+    cfg = {}
+    df = apply_etl(_read(spark, tmp_path, "m.csv", src, build_read_options(cfg, "utf-8")), cfg)
+    assert _rows(df) == [["id", "remarks"], ["1", "輪轂高度:64公尺\n試運轉中"], ["2", "ok"]]

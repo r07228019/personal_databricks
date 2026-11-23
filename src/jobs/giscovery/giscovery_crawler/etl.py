@@ -1,7 +1,7 @@
 """ETL 階段：依 etl_config 對爬蟲下載的檔案做欄位轉換，輸出到 etldestined Volume。
 
 移植自 app-aws-crawler 的 Glue job（script/glue/glue_etl_job/glue_etl_job.py），轉換步驟與順序相同：
-    0. 讀檔：header=True，再套用 etl_config 的 load_file（例如 delimiter）
+    0. 讀檔：multiLine=True、header=True，再套用 etl_config 的 load_file（例如 delimiter）
     1. rename_columns：只改存在的欄位
     2. drop_columns：只刪存在的欄位
     3. filter_conditions：支援 `>`、`!=`、`=`、` contains ` 四種寫法
@@ -14,6 +14,8 @@
       Spark 4 的 CSV 只接受 SPARK_CSV_CHARSETS 這幾種編碼，其他編碼（如 big5）先轉成 UTF-8 暫存檔再讀。
     - Glue 4.0 是 Spark 3.3（ANSI 模式關閉），轉型失敗會變 null；Databricks serverless 是 Spark 4（ANSI 預設開啟），
       cast 遇到不合法的值會直接報錯。cast_columns 與 `>` 比較改用 try_cast，維持「轉不過就是 null」的行為。
+    - 讀檔預設 multiLine=True：Glue 版本沿用 Spark 預設的 multiLine=false，引號內有換行的欄位會被拆成兩筆
+      （例如 renewableEnergyPlant 的備註欄）；load_file 仍可覆寫。
     - 看不懂的 filter 條件直接拋錯；Glue 版本會默默略過，等於少篩一段資料。
     - 輸出改成在 driver 端轉 pandas 寫單一 CSV（資料量都在 MB 以下），
       不再需要 coalesce(1) → 等 30 秒 → 找 part 檔改名 → 刪暫存 這段繞 S3 的流程。
@@ -71,13 +73,15 @@ def spark_readable_input(input_path: str, file_encoding: str | None, scratch_dir
 
 
 def build_read_options(etl_config: dict[str, Any], file_encoding: str | None = None) -> dict[str, Any]:
-    """組出 spark.read 的 options：encoding → load_file → header 強制為 True。
+    """組出 spark.read 的 options：encoding → multiLine=True → load_file → header 強制為 True。
 
-    Glue 版本最後又呼叫一次 .option("header", True)，所以 load_file 就算寫了 header 也會被蓋掉，這裡照做。
+    multiLine 預設開啟，讓引號內含換行的欄位維持同一筆（Spark 預設是 false，Glue 版本沿用預設會拆成兩筆），
+    load_file 可以覆寫。Glue 版本最後又呼叫一次 .option("header", True)，所以 load_file 就算寫了 header 也會被蓋掉，這裡照做。
     """
     options: dict[str, Any] = {}
     if file_encoding:
         options["encoding"] = file_encoding
+    options["multiLine"] = True
     options.update(etl_config.get("load_file") or {})
     options["header"] = True
     return options

@@ -19,7 +19,7 @@
 # MAGIC 可抽換的設定（時區、預設日期與小時、URL template、Volume 位置、檔名規則、重試與檢查參數）都在同目錄的
 # MAGIC `config.json`。排程時間屬於 job 定義，不在 config 內。
 # MAGIC
-# MAGIC 參數（job parameter / widget）：預設值的唯一來源是 config 的 `defaults`，job parameter 與 widget 的預設都是空白。
+# MAGIC 參數（job parameter，由 job 定義傳入，notebook 不設預設值）：預設值的唯一來源是 config 的 `defaults`，job parameter 的預設都是空白。
 # MAGIC
 # MAGIC | 參數 | 格式 | 空白時 | 說明 |
 # MAGIC |---|---|---|---|
@@ -47,7 +47,7 @@
 import os
 import sys
 
-dbutils.widgets.text("repo_root", "", "repo_root (空白=由 notebook 位置推算)")
+# Parameters come from the job definition (resources/*.yml); read them with dbutils.widgets.get only.
 
 # A bundle deploys to a plain workspace folder, not a Git folder, so Databricks only puts the
 # notebook directory on sys.path. Add the repo root explicitly so `import common` resolves.
@@ -69,10 +69,6 @@ from common.http_utils import download_bytes
 from common.storage import write_bytes
 from cwa_temperature_map.params import parse_and_validate
 from cwa_temperature_map.source import build_dest_path, build_source_url
-
-dbutils.widgets.text("data_date", "", "data_date (yyyy-MM-dd / today, 空白=config 預設)")
-dbutils.widgets.text("data_hour", "", "data_hour (0-23, 空白=config 預設)")
-dbutils.widgets.text("config_path", "", "config_path (空白=同目錄 config.json)")
 
 # COMMAND ----------
 
