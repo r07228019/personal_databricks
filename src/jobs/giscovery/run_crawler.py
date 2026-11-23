@@ -7,6 +7,8 @@
 # MAGIC 流程：從 Delta table 讀該 task 的設定 → 載入 `crawlers/<task_name>.py` → 呼叫 `main(sink, params)` →
 # MAGIC 檔案寫進 `/Volumes/<catalog>/<schema>/<volume>/<task_name>/`。
 # MAGIC
+# MAGIC 參數都由 job 定義傳入（`gen_crawler_jobs.py` 產生），notebook 不設預設值，下表的預設是 job 端的值。
+# MAGIC
 # MAGIC | 參數 | 說明 |
 # MAGIC |---|---|
 # MAGIC | `task_name` | 必填，對應 `crawlers/<task_name>.py` 與設定表的 `task_name` |
@@ -19,12 +21,7 @@
 import os
 import sys
 
-dbutils.widgets.text("task_name", "", "task_name (必填)")
-dbutils.widgets.text("config_table", "test.giscovery.crawler_config", "config_table")
-dbutils.widgets.text("sink_catalog", "test", "sink_catalog")
-dbutils.widgets.text("sink_schema", "giscovery", "sink_schema")
-dbutils.widgets.text("sink_volume", "crawlersink", "sink_volume")
-dbutils.widgets.text("repo_root", "", "repo_root (空白=由 notebook 位置推算)")
+# Parameters come from the job definition (resources/*.yml); read them with dbutils.widgets.get only.
 
 # 讓 notebook 可以 import repo 根目錄的 common/ 與本目錄的 giscovery_crawler/
 _notebook_path = dbutils.notebook.entry_point.getDbutils().notebook().getContext().notebookPath().get()

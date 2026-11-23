@@ -12,6 +12,8 @@
 # MAGIC - 其他：把 crawlersink 的 `<task_name>/` 底下的檔案原封不動複製到 etldestined 的同一路徑，
 # MAGIC   只複製目的端沒有或有變動的檔。見 `giscovery_crawler/passthrough.py`。
 # MAGIC
+# MAGIC 參數都由 job 定義傳入（`resources/crawler_etl.job.yml`），notebook 不設預設值，下表的預設是 job 端的值。
+# MAGIC
 # MAGIC | 參數 | 說明 |
 # MAGIC |---|---|
 # MAGIC | `task_name` | 必填，對應兩張設定表的 `task_name` |
@@ -26,15 +28,7 @@
 import os
 import sys
 
-dbutils.widgets.text("task_name", "", "task_name (必填)")
-dbutils.widgets.text("input_path", "", "input_path (空白=依設定推算)")
-dbutils.widgets.text("crawler_config_table", "test.giscovery.crawler_config", "crawler_config_table")
-dbutils.widgets.text("etl_config_table", "test.giscovery.etl_config", "etl_config_table")
-dbutils.widgets.text("catalog", "test", "catalog")
-dbutils.widgets.text("schema", "giscovery", "schema")
-dbutils.widgets.text("source_volume", "crawlersink", "source_volume")
-dbutils.widgets.text("output_volume", "etldestined", "output_volume")
-dbutils.widgets.text("repo_root", "", "repo_root (空白=由 notebook 位置推算)")
+# Parameters come from the job definition (resources/*.yml); read them with dbutils.widgets.get only.
 
 # A bundle deploys to a plain workspace folder, not a Git folder, so only the notebook directory is on
 # sys.path. Add this directory (giscovery_crawler) and the repo root (common) explicitly.
