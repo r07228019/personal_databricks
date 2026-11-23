@@ -1,0 +1,59 @@
+resources:
+  jobs:
+    geoNormalize:
+      name: geoNormalize
+      description: giscovery 地理標準化層。爬蟲 job 的 geo task 在 crawlerEtl 完成後帶 task_name 觸發，把 etldestined 的地理資料（Shapefile、KML、JSON 點位、地址）用 RustGIS 轉成 EPSG:4326 GeoParquet，寫到 geoready Volume；只有地址的資料以 Google Geocoding 轉座標（有快取與每月呼叫上限）。
+      tags:
+        project-name: giscovery
+        job-type: geo
+      # Several crawler jobs can finish around the same time; extra runs are queued instead of skipped
+      max_concurrent_runs: 10
+      queue:
+        enabled: true
+      performance_target: STANDARD
+      email_notifications:
+        on_failure:
+          - ${var.notification_email}
+      environments:
+        - environment_key: geo
+          spec:
+            # rustgis needs Python >= 3.12, i.e. serverless environment 3 or later
+            environment_version: "3"
+            dependencies:
+              - rustgis==0.8.0
+              # pandas.read_excel(engine="odf") for medicalInstituteInfo.ods
+              - odfpy==1.4.1
+      parameters:
+        - name: task_name
+          default: ""
+        - name: crawler_config_table
+          default: ${var.catalog}.${var.giscovery_schema}.crawler_config
+        - name: geo_config_table
+          default: ${var.catalog}.${var.giscovery_schema}.geo_config
+        - name: catalog
+          default: ${var.catalog}
+        - name: schema
+          default: ${var.giscovery_schema}
+        - name: source_volume
+          default: ${var.etldestined_volume}
+        - name: output_volume
+          default: ${var.geoready_volume}
+        - name: geocode_cache_table
+          default: ${var.catalog}.${var.giscovery_schema}.geocode_cache
+        - name: geocode_monthly_limit
+          default: "9000"
+        # Throttle across all workers; OVER_QUERY_LIMIT / 429 responses are backed off and retried
+        - name: geocode_max_qps
+          default: "20"
+        - name: secret_scope
+          default: gis-scope
+        - name: secret_key
+          default: googlemaps-api-key
+        - name: repo_root
+          default: ${workspace.file_path}
+      tasks:
+        - task_key: geo
+          environment_key: geo
+          notebook_task:
+            notebook_path: ../src/jobs/giscovery/run_geo.py
+          timeout_seconds: 3600

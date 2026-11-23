@@ -10,6 +10,7 @@
 - schedule_enabled 為 "false" 的 task 排程 PAUSED
 - 每支都有 etl task：crawl 成功後以 Run Job task 觸發共用的 crawlerEtl job（只帶 task_name），
   由 crawlerEtl 依 to_etl 決定做 ETL 或原封不動複製到 etldestined，取代原本 S3 事件 → glue-trigger Lambda 的串接
+- cfh-gis20-geo-config.jsonl 有列的 task 再加一個 geo task：etl 成功後觸發 geoNormalize，轉成 EPSG:4326 GeoParquet
 - PAUSED_TASKS 裡的 task 不論 jsonl 怎麼寫都 PAUSED，暫停原因會一併寫進 job 的 description
   （目前在 Databricks 上跑不起來的三支：CWB、potentialWindField、soilLiquefaction）
 """
@@ -25,11 +26,14 @@ sys.path.insert(0, str(REPO_ROOT / "src" / "jobs" / "giscovery"))
 from giscovery_crawler.schedule import eventbridge_to_quartz  # noqa: E402
 
 JSONL_PATH = REPO_ROOT / "src" / "jobs" / "config" / "data" / "cfh-gis20-ddb-crawler-config.jsonl"
+GEO_JSONL_PATH = REPO_ROOT / "src" / "jobs" / "config" / "data" / "cfh-gis20-geo-config.jsonl"
 OUTPUT_DIR = REPO_ROOT / "resources" / "giscovery"
 NOTEBOOK_PATH = "../../src/jobs/giscovery/run_crawler.py"
 TIMEZONE = "Asia/Taipei"
 # Resource key of the shared ETL job (resources/crawler_etl.job.yml)
 ETL_JOB_KEY = "crawlerEtl"
+# Resource key of the shared geo normalization job (resources/geo_normalize.job.yml)
+GEO_JOB_KEY = "geoNormalize"
 # task_name -> why the schedule is forced to PAUSED. The reason is appended to the job description.
 # The workspace runs on AWS us-east-2, so serverless egress leaves from US IP addresses.
 PAUSED_TASKS = {
@@ -58,7 +62,7 @@ def load_tasks(path: Path) -> list[dict]:
     return tasks
 
 
-def render_job(task: dict) -> str:
+def render_job(task: dict, geo_enabled: bool = False) -> str:
     name = task["task_name"]
     # job key / name 直接用 task_name，不加前綴；專案與類型改用 tags 區分
     job_key = name
@@ -102,7 +106,7 @@ def render_job(task: dict) -> str:
         "      environments:",
         "        - environment_key: crawler",
         "          spec:",
-        "            client: \"2\"",
+        "            environment_version: \"3\"",
         "            dependencies:",
         "              - beautifulsoup4",
         "              - paramiko",
@@ -135,8 +139,19 @@ def render_job(task: dict) -> str:
         f"            job_id: ${{resources.jobs.{ETL_JOB_KEY}.id}}",
         "            job_parameters:",
         f"              task_name: {name}",
-        "",
     ]
+    if geo_enabled:
+        # Normalize the etldestined output to EPSG:4326 GeoParquet (tasks listed in the geo config jsonl)
+        lines += [
+            "        - task_key: geo",
+            "          depends_on:",
+            "            - task_key: etl",
+            "          run_job_task:",
+            f"            job_id: ${{resources.jobs.{GEO_JOB_KEY}.id}}",
+            "            job_parameters:",
+            f"              task_name: {name}",
+        ]
+    lines.append("")
     return "\n".join(lines)
 
 
@@ -146,7 +161,14 @@ def main() -> int:
     args = parser.parse_args()
 
     tasks = load_tasks(JSONL_PATH)
-    expected = {OUTPUT_DIR / f"{t['task_name']}.job.yml": render_job(t) for t in tasks}
+    geo_tasks = {t["task_name"] for t in load_tasks(GEO_JSONL_PATH)}
+    unknown = geo_tasks - {t["task_name"] for t in tasks}
+    if unknown:
+        print(f"{GEO_JSONL_PATH.name} 有 crawler_config 沒有的 task：{sorted(unknown)}")
+        return 1
+    expected = {
+        OUTPUT_DIR / f"{t['task_name']}.job.yml": render_job(t, t["task_name"] in geo_tasks) for t in tasks
+    }
 
     existing = set(OUTPUT_DIR.glob("*.job.yml")) if OUTPUT_DIR.exists() else set()
     stale = existing - set(expected)

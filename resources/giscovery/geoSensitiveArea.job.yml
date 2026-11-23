@@ -23,7 +23,7 @@ resources:
       environments:
         - environment_key: crawler
           spec:
-            client: "2"
+            environment_version: "3"
             dependencies:
               - beautifulsoup4
               - paramiko
@@ -53,5 +53,12 @@ resources:
             - task_key: crawl
           run_job_task:
             job_id: ${resources.jobs.crawlerEtl.id}
+            job_parameters:
+              task_name: geoSensitiveArea
+        - task_key: geo
+          depends_on:
+            - task_key: etl
+          run_job_task:
+            job_id: ${resources.jobs.geoNormalize.id}
             job_parameters:
               task_name: geoSensitiveArea

@@ -14,6 +14,10 @@ resources:
       email_notifications:
         on_failure:
           - ${var.notification_email}
+      environments:
+        - environment_key: etl
+          spec:
+            environment_version: "3"
       parameters:
         - name: task_name
           default: ""
@@ -35,6 +39,7 @@ resources:
           default: ${workspace.file_path}
       tasks:
         - task_key: etl
+          environment_key: etl
           notebook_task:
             notebook_path: ../src/jobs/giscovery/run_etl.py
           timeout_seconds: 1800
