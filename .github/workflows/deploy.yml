@@ -32,8 +32,9 @@ jobs:
           python-version: "3.12"
       - name: Install test dependencies
         # Tests import every crawler module, so their third-party imports must be installed here too
-        # (keep in sync with `dependencies` in scripts/gen_crawler_jobs.py)
-        run: pip install pytest requests pandas beautifulsoup4 paramiko
+        # (keep in sync with `dependencies` in scripts/gen_crawler_jobs.py). rustgis/pyarrow run the
+        # RustGIS-backed geo tests (keep the rustgis pin in sync with resources/geo_normalize.job.yml)
+        run: pip install pytest requests pandas beautifulsoup4 paramiko rustgis==0.8.0 pyarrow
       - name: Check generated job yml is in sync with jsonl
         run: python scripts/gen_crawler_jobs.py --check
       - name: Run pytest

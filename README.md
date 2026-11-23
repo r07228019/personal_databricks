@@ -2,13 +2,14 @@
 
 個人 Databricks workspace 的 job 集合，以 Databricks Asset Bundle（DAB）管理、GitHub Actions 部署。
 
-目前有四類 job：
+目前有五類 job：
 
 | 類別 | Job | 內容 |
 |---|---|---|
 | cwa | `dailyCWATemperatureMap` | 每天 18:00（台北）抓中央氣象署當天 13:00 的溫度分布圖到 UC Volume |
 | giscovery | `<task_name>` × 13（如 `cathayATM`、`debrisCoverage`） | 從 [app-aws-crawler](https://dev.azure.com/cfhclouddevops/D.tech-GIS2.0/_git/app-aws-crawler) 移植的 13 支爬蟲，各自排程、各自一個 job，下載檔案到 UC Volume |
 | giscovery | `crawlerEtl` | 爬蟲的後處理（移植自原本的 glue-trigger Lambda 與 Glue job），每支爬蟲 job 爬完後觸發，可多個 run 並行：`to_etl=true` 做 ETL，其餘原封不動複製到 etldestined |
+| giscovery | `geoNormalize` | 地理標準化層：crawlerEtl 完成後觸發，用 [RustGIS](https://github.com/opengeos/RustGIS) 把 etldestined 的地理資料轉成 EPSG:4326 GeoParquet 到 geoready；只有地址的資料以 Google Geocoding 轉座標 |
 | config | `updateGiscoveryConfig` | 把 jsonl 設定檔同步到 Delta table（取代原本的 DynamoDB），無排程；GitHub Actions 部署完會自動執行，也可手動執行 |
 
 Job 命名一律用 lowerCamelCase、不加專案前綴（爬蟲 job 直接沿用 `task_name`，例如 `CWB`）；專案與類型用 tags 區分：
@@ -16,7 +17,7 @@ Job 命名一律用 lowerCamelCase、不加專案前綴（爬蟲 job 直接沿�
 | Tag | 值 |
 |---|---|
 | `project-name` | `giscovery` / `cwa` |
-| `job-type` | `crawler` / `etl` / `config` |
+| `job-type` | `crawler` / `etl` / `geo` / `config` |
 | `category`、`task_name` | 只有 giscovery 爬蟲有，來自 jsonl（如 `geo` / `medical`） |
 
 ## 目錄結構
@@ -27,6 +28,7 @@ Job 命名一律用 lowerCamelCase、不加專案前綴（爬蟲 job 直接沿�
 ├── resources/
 │   ├── daily_cwa_temperature_map.job.yml
 │   ├── crawler_etl.job.yml          # 共用的後處理 job（crawlerEtl：ETL 或複製）
+│   ├── geo_normalize.job.yml        # 共用的地理標準化 job（geoNormalize）
 │   ├── update_giscovery_config.job.yml
 │   └── giscovery/<task_name>.job.yml   # 13 個爬蟲 job，由 scripts/gen_crawler_jobs.py 產生
 ├── common/                          # 跨 job 共用模組（config 讀取、HTTP 重試、Volume 寫檔）
@@ -35,8 +37,9 @@ Job 命名一律用 lowerCamelCase、不加專案前綴（爬蟲 job 直接沿�
 │   ├── giscovery/
 │   │   ├── run_crawler.py           # 13 個爬蟲 job 共用的 notebook 進入點（參數 task_name）
 │   │   ├── run_etl.py               # crawlerEtl job 的 notebook（參數 task_name）
+│   │   ├── run_geo.py               # geoNormalize job 的 notebook（參數 task_name）
 │   │   ├── crawlers/<task_name>.py  # 各支爬蟲，介面 main(sink, params)
-│   │   └── giscovery_crawler/       # 共用模組：config / sink / datagov / http / runner / schedule / etl / passthrough
+│   │   └── giscovery_crawler/       # 共用模組：config / sink / datagov / http / runner / schedule / etl / passthrough / geo / geocode
 │   └── config/
 │       ├── update_giscovery_config.py   # jsonl → Delta table 的 notebook
 │       ├── config_sync.py
@@ -69,6 +72,9 @@ run_etl notebook 依 crawler_config 的 to_etl 分流
         │
         ▼
 /Volumes/test/giscovery/etldestined/<task_name>/<同檔名>
+        │  geo_config 有列的 task：geo task（Run Job）帶 task_name 觸發 geoNormalize
+        ▼
+/Volumes/test/giscovery/geoready/<task_name>/<task_name>.parquet（EPSG:4326 GeoParquet）
 ```
 
 - 設定表只有 `task_name`、`config_json`（整行 JSON 字串）、`updated_at` 三欄，不把 JSON 展開，因為 `etl_config` 的 nested key 含 `(`、`/` 等 Delta 不允許的字元。
@@ -91,6 +97,33 @@ run_etl notebook 依 crawler_config 的 to_etl 分流
   - 輸出改用 pandas 寫單一 UTF-8 CSV，不再走 `coalesce(1)` → 改名 part 檔的流程。
 - **複製（`to_etl` 不是 `true`）**：`giscovery_crawler/passthrough.py`，把 crawlersink 的 `<task_name>/` 第一層的檔案原封不動複製到 etldestined 的同一路徑，對應 Lambda 的 `copy_object`。Lambda 是每個 S3 事件複製一個檔；這裡是爬完後處理整個目錄，只複製目的端沒有、大小不同或來源較新的檔，所以爬蟲沒重新下載的檔（例如 `CWB` 已存在的檔）不會重複複製。目的端多出來的檔不會刪除，與 Lambda 相同。
 - **手動執行**：`databricks bundle run crawlerEtl -t prod -p personal --params task_name=windPowerGeneration`。
+
+### 地理標準化（geoNormalize）
+
+Databricks 版新增的階段，原本 AWS 沒有。把各種格式的地理資料統一成 **EPSG:4326 的 GeoParquet**（WKB 幾何欄 `geometry` + `bbox`，GeoParquet 1.1），之後 Databricks SQL 的 `ST_*` 函式、GeoPandas、RustGIS 桌面版都讀同一份。
+
+- **設定**：`src/jobs/config/data/cfh-gis20-geo-config.jsonl` → `test.giscovery.geo_config`（由 `updateGiscoveryConfig` 同步）。有列的 task，`gen_crawler_jobs.py` 才會在爬蟲 job 加 `geo` task（`etl` 成功後以 `run_job_task` 觸發 `geoNormalize`）。
+- **讀檔方式（`reader`）**，實作在 `giscovery_crawler/geo.py`：
+
+  | reader | task | 說明 |
+  |---|---|---|
+  | `vector` | `debrisCoverage`、`debrisStream`、`geoSensitiveArea`、`historicalTyphoonFloodArea` | RustGIS 直接讀 Shapefile zip / KML 並重投影；`crs` 可覆蓋或補上 `.prj` |
+  | `json_points` | `cathayATM` | 依縣市分組的 JSON，`Latitude` / `Longitude` 轉點位，`Type` 展開成 `Type_<欄位>` |
+  | `geocode` | `renewableEnergyPlant`、`medicalInstituteInfo` | 只有地址，經 Google Geocoding 轉成點位 |
+
+- **輸出**：`/Volumes/test/giscovery/geoready/<task_name>/<task_name>.parquet`；一個檔有多個圖層時（KML 同時有面與點）是 `<task_name>_<圖層>.parquet`，例如 `historicalTyphoonFloodArea_polygons.parquet`。這次沒產出的舊 parquet 會刪除。`geoready` Volume 不存在時會自動建立。
+- **資料本身的狀況**：
+  - `geoSensitiveArea` 的 zip 沒有 `.prj`。座標值 x≈13.39M、y≈2.64M 是 Web Mercator，所以設 `"crs": "EPSG:3857"`，換算後落在台南。若照 EPSG:3826 解讀，會落在太平洋上。
+  - `historicalTyphoonFloodArea` 的 KML 用了 `xsi:schemaLocation`，卻沒宣告 `xmlns:xsi`，RustGIS 0.8 會拒讀，所以先補上宣告再讀。
+  - `debrisCoverage` 的 `Address` 有 34 筆不是合法 UTF-8（`.cpg` 寫 UTF-8），讀進來會變成 U+FFFD，RustGIS 會在 log 印出 notice。
+- **Geocoding**（`giscovery_crawler/geocode.py`）：
+  - API key 放在 secret scope `gis-scope` 的 `googlemaps-api-key`，由 job 參數 `secret_scope` / `secret_key` 指定。目前用的是 scope 而不是 UC secret，因為 `dbutils` 讀 UC secret 需要 serverless environment 4 以上。
+  - 結果存在快取表 `test.giscovery.geocode_cache`。快取只 append，同一個地址取最新一筆，查過的地址不會重查，`ZERO_RESULTS` 也算查過。
+  - 每月（台北時間）最多呼叫 `geocode_monthly_limit` 次，預設 9,000；Google 每月免費額度是 10,000 次。超過的地址延後到下個月再查，這些列暫時不會出現在輸出。`medicalInstituteInfo` 約有 2.4 萬個不重複地址，大約要 3 個月才能補齊。
+  - 限流：所有 worker 合計每秒最多 `geocode_max_qps` 次（預設 20）。遇到 `OVER_QUERY_LIMIT` 或 HTTP 429 會指數退避後重試同一個地址（最多 8 次），不會讓 run 失敗。限流錯誤不計費，也不寫進快取。
+  - key 或帳戶層級的錯誤（`REQUEST_DENIED`、`OVER_DAILY_LIMIT` 等），或限流重試用完，會讓 run 失敗。失敗前已查到的結果仍會寫進快取。注意：serverless job 預設會自動重試失敗的 task，重試時一樣受每月上限保護。
+- **環境**：serverless environment 3（Python 3.12，`rustgis` 需要 3.12 以上），相依 `rustgis==0.8.0`、`odfpy==1.4.1`（讀 ODS 用）。
+- **手動執行**：`databricks bundle run geoNormalize -t prod -p personal --params task_name=cathayATM`。
 
 ### 排程
 
@@ -120,13 +153,15 @@ jsonl 的 `schedule` 欄位沿用 AWS EventBridge 的 6 欄位 cron（分 時 �
    - data.gov.tw 的搜尋用 `giscovery_crawler.datagov`，HTTP 用 `giscovery_crawler.http`。
 3. `python scripts/gen_crawler_jobs.py` 產生 job yml。
 4. 需要 ETL 時：jsonl 設 `"to_etl": "true"`，並在 `cfh-gis20-ddb-etl-config.jsonl` 加同一個 `task_name` 的轉換設定；否則爬完的檔會原封不動複製到 etldestined。
-5. 經 GitHub Actions 部署時會自動跑 `updateGiscoveryConfig`；本機部署則要先手動跑一次，再跑新 job。
+5. 需要轉成 GeoParquet 時：在 `cfh-gis20-geo-config.jsonl` 加一行（`task_name` + `reader`），再重新產生 job yml。
+6. 經 GitHub Actions 部署時會自動跑 `updateGiscoveryConfig`；本機部署則要先手動跑一次，再跑新 job。
 
 ## 本機開發
 
 ```bash
 # 單元測試（不需要 Databricks）；套件清單與 .github/workflows/deploy.yml 的 test job 相同
-pip install pytest requests pandas beautifulsoup4 paramiko
+# rustgis 需要 Python 3.12 以上；沒裝的話 RustGIS 相關測試會 skip
+pip install pytest requests pandas beautifulsoup4 paramiko rustgis==0.8.0 pyarrow
 pytest
 
 # 驗證 / 部署 / 執行（profile 由 ~/.databrickscfg 決定）

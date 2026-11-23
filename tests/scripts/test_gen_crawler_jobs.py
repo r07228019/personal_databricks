@@ -27,3 +27,16 @@ def test_every_job_triggers_crawler_etl(gen, to_etl):
 def test_paused_task_reason_in_description(gen):
     out = gen.render_job({"task_name": "CWB", "category": "geo", "schedule": "0 16 1 * ? *"})
     assert "pause_status: PAUSED" in out and "【排程暫停】" in out
+
+
+def test_geo_task_only_when_enabled(gen):
+    task = {"task_name": "a", "category": "geo"}
+    assert "task_key: geo" not in gen.render_job(task)
+    out = gen.render_job(task, geo_enabled=True)
+    assert "- task_key: geo\n          depends_on:\n            - task_key: etl" in out
+    assert "job_id: ${resources.jobs.geoNormalize.id}" in out
+
+
+def test_crawler_environment_is_version_3(gen):
+    out = gen.render_job({"task_name": "a", "category": "geo"})
+    assert 'environment_version: "3"' in out and "client:" not in out

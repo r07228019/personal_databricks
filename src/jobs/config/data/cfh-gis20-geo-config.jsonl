@@ -1,0 +1,7 @@
+{"task_name": "cathayATM", "reader": "json_points", "x": "Longitude", "y": "Latitude", "group_field": "county", "flatten": ["Type"]}
+{"task_name": "debrisCoverage", "reader": "vector"}
+{"task_name": "debrisStream", "reader": "vector"}
+{"task_name": "geoSensitiveArea", "reader": "vector", "crs": "EPSG:3857", "crs_note": "來源 zip 沒有 .prj；座標值（x≈13.39M、y≈2.64M）是 Web Mercator，換算後落在台南"}
+{"task_name": "historicalTyphoonFloodArea", "reader": "vector"}
+{"task_name": "medicalInstituteInfo", "reader": "geocode", "address_column": "地址"}
+{"task_name": "renewableEnergyPlant", "reader": "geocode", "address_column": "Address"}

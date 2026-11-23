@@ -11,6 +11,10 @@ resources:
       email_notifications:
         on_failure:
           - ${var.notification_email}
+      environments:
+        - environment_key: config
+          spec:
+            environment_version: "3"
       parameters:
         - name: catalog
           default: ${var.catalog}
@@ -20,6 +24,7 @@ resources:
           default: ""
       tasks:
         - task_key: sync_config_tables
+          environment_key: config
           notebook_task:
             notebook_path: ../src/jobs/config/update_giscovery_config.py
           timeout_seconds: 900

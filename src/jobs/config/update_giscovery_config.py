@@ -9,6 +9,7 @@
 # MAGIC |---|---|
 # MAGIC | `data/cfh-gis20-ddb-crawler-config.jsonl` | `<catalog>.<schema>.crawler_config` |
 # MAGIC | `data/cfh-gis20-ddb-etl-config.jsonl` | `<catalog>.<schema>.etl_config` |
+# MAGIC | `data/cfh-gis20-geo-config.jsonl` | `<catalog>.<schema>.geo_config`（地理標準化，Databricks 版新增） |
 # MAGIC
 # MAGIC 表結構：`task_name STRING`、`config_json STRING`（整行 JSON）、`updated_at TIMESTAMP`。
 # MAGIC 不把 JSON 展開成欄位，因為 etl_config 的 nested key 含 `(`、`/` 等 Delta 不允許的字元。
