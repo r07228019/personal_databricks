@@ -14,7 +14,7 @@ resources:
       max_concurrent_runs: 1
       performance_target: STANDARD
       schedule:
-        quartz_cron_expression: "0 0 16 1 * ? *"
+        quartz_cron_expression: "0 0 5 * * ? *"
         timezone_id: Asia/Taipei
         pause_status: UNPAUSED
       email_notifications:
